@@ -693,3 +693,27 @@ procdump(void)
     printf("\n");
   }
 }
+
+int dump(void) {
+    struct proc *p = myproc();
+    struct trapframe *tf = p->trapframe;
+
+    uint64 regs[10];
+
+    regs[0] = tf->s2;
+    regs[1] = tf->s3;
+    regs[2] = tf->s4;
+    regs[3] = tf->s5;
+    regs[4] = tf->s6;
+    regs[5] = tf->s7;
+    regs[6] = tf->s8;
+    regs[7] = tf->s9;
+    regs[8] = tf->s10;
+    regs[9] = tf->s11;
+
+    for (int i = 0; i < 10; i++) {
+        printf("s%d = %d\n", i + 2, (uint32)regs[i]);
+    }
+
+    return 0;
+}
