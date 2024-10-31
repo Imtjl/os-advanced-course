@@ -16,6 +16,7 @@ sub entry {
 }
 	
 entry("dump");
+entry("dump2");
 entry("fork");
 entry("exit");
 entry("wait");

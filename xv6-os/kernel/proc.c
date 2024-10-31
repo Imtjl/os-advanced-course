@@ -717,3 +717,52 @@ int dump(void) {
 
     return 0;
 }
+
+int dump2(int pid, int reg, uint64 return_value_user) {
+    struct proc *p = myproc();
+    struct proc *target_proc = 0;
+
+    // check for reg num
+    if (reg < 2 || reg > 12) {
+        return -3;  // incorrect reg num
+    }
+
+    for (struct proc *proc_entry = proc; proc_entry < &proc[NPROC]; proc_entry++) {
+		acquire(&proc_entry->lock);  // spinlock
+
+		if (proc_entry->pid == pid) {
+            target_proc = proc_entry;
+            // check for access rights
+            if (target_proc != p && target_proc->parent != p) {
+                release(&target_proc->lock);
+                return -1;  // don't have enough access rights
+            }
+
+            uint64 reg_value;
+            switch (reg) {
+                case 2: reg_value = target_proc->trapframe->s2; break;
+                case 3: reg_value = target_proc->trapframe->s3; break;
+                case 4: reg_value = target_proc->trapframe->s4; break;
+                case 5: reg_value = target_proc->trapframe->s5; break;
+                case 6: reg_value = target_proc->trapframe->s6; break;
+                case 7: reg_value = target_proc->trapframe->s7; break;
+                case 8: reg_value = target_proc->trapframe->s8; break;
+                case 9: reg_value = target_proc->trapframe->s9; break;
+                case 10: reg_value = target_proc->trapframe->s10; break;
+                case 11: reg_value = target_proc->trapframe->s11; break;
+            }
+
+            release(&target_proc->lock);
+
+            if (copyout(p->pagetable, return_value_user, (char *)&reg_value, sizeof(uint64)) < 0) {
+                return -4;  // data write fail
+            }
+
+            return 0;
+        }
+
+        release(&proc_entry->lock);
+    }
+
+    return -2; // no process found with this pid
+}
