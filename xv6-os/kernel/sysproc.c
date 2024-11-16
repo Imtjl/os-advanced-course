@@ -111,3 +111,13 @@ sys_dump2(void)
 
   return dump2(pid, reg, ret_val);
 }
+
+uint64
+sys_info(void)
+{
+  uint64 user_addr;
+
+  argaddr(0, &user_addr);
+
+  return get_sysinfo(user_addr);
+}

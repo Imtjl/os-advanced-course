@@ -1,4 +1,5 @@
 #include "kernel/types.h"
+#include "sysinfo.h"
 struct stat;
 
 // system calls
@@ -25,6 +26,7 @@ int sleep(int);
 int uptime(void);
 int dump(void);
 int dump2(int pid, int register_num, uint64 *return_value);
+int info(struct sysinfo *info);
 
 // ulib.c
 int stat(const char*, struct stat*);

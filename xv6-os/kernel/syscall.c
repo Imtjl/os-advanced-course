@@ -9,8 +9,7 @@
 
 // Fetch the uint64 at addr from the current process.
 int
-fetchaddr(uint64 addr, uint64 *ip)
-{
+fetchaddr(uint64 addr, uint64 *ip) {
   struct proc *p = myproc();
   if(addr >= p->sz || addr+sizeof(uint64) > p->sz) // both tests needed, in case of overflow
     return -1;
@@ -103,6 +102,7 @@ extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
 extern uint64 sys_dump(void);
 extern uint64 sys_dump2(void);
+extern uint64 sys_info(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -130,6 +130,7 @@ static uint64 (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_dump]	  sys_dump,
 [SYS_dump2]	  sys_dump2,
+[SYS_info]	  sys_info,
 };
 
 void

@@ -3,13 +3,15 @@
 #include "memlayout.h"
 #include "riscv.h"
 #include "spinlock.h"
+#include "sleeplock.h"
 #include "proc.h"
 #include "defs.h"
+#include "file.h"
+#include "sysinfo.h"
 
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
-
 struct proc *initproc;
 
 int nextpid = 1;
@@ -719,50 +721,78 @@ int dump(void) {
 }
 
 int dump2(int pid, int reg, uint64 return_value_user) {
-    struct proc *p = myproc();
-    struct proc *target_proc = 0;
+  struct proc *p = myproc();
+  struct proc *target_proc = 0;
 
-    // check for reg num
-    if (reg < 2 || reg > 12) {
-        return -3;  // incorrect reg num
-    }
+  // check for reg num
+  if (reg < 2 || reg > 12) {
+    return -3;  // incorrect reg num
+  }
 
-    for (struct proc *proc_entry = proc; proc_entry < &proc[NPROC]; proc_entry++) {
+  for (struct proc *proc_entry = proc; proc_entry < &proc[NPROC]; proc_entry++) {
 		acquire(&proc_entry->lock);  // spinlock
 
 		if (proc_entry->pid == pid) {
-            target_proc = proc_entry;
-            // check for access rights
-            if (target_proc != p && target_proc->parent != p) {
-                release(&target_proc->lock);
-                return -1;  // don't have enough access rights
-            }
-
-            uint64 reg_value;
-            switch (reg) {
-                case 2: reg_value = target_proc->trapframe->s2; break;
-                case 3: reg_value = target_proc->trapframe->s3; break;
-                case 4: reg_value = target_proc->trapframe->s4; break;
-                case 5: reg_value = target_proc->trapframe->s5; break;
-                case 6: reg_value = target_proc->trapframe->s6; break;
-                case 7: reg_value = target_proc->trapframe->s7; break;
-                case 8: reg_value = target_proc->trapframe->s8; break;
-                case 9: reg_value = target_proc->trapframe->s9; break;
-                case 10: reg_value = target_proc->trapframe->s10; break;
-                case 11: reg_value = target_proc->trapframe->s11; break;
-            }
-
-            release(&target_proc->lock);
-
-            if (copyout(p->pagetable, return_value_user, (char *)&reg_value, sizeof(uint64)) < 0) {
-                return -4;  // data write fail
-            }
-
-            return 0;
+      target_proc = proc_entry;
+      // check for access rights
+      if (target_proc != p && target_proc->parent != p) {
+        release(&target_proc->lock);
+        return -1;  // don't have enough access rights }
+        uint64 reg_value;
+        switch (reg) {
+          case 2: reg_value = target_proc->trapframe->s2; break;
+          case 3: reg_value = target_proc->trapframe->s3; break;
+          case 4: reg_value = target_proc->trapframe->s4; break;
+          case 5: reg_value = target_proc->trapframe->s5; break;
+          case 6: reg_value = target_proc->trapframe->s6; break;
+          case 7: reg_value = target_proc->trapframe->s7; break;
+          case 8: reg_value = target_proc->trapframe->s8; break;
+          case 9: reg_value = target_proc->trapframe->s9; break;
+          case 10: reg_value = target_proc->trapframe->s10; break;
+          case 11: reg_value = target_proc->trapframe->s11; break;
         }
 
-        release(&proc_entry->lock);
+        release(&target_proc->lock);
+
+        if (copyout(p->pagetable, return_value_user, (char *)&reg_value, sizeof(uint64)) < 0) {
+          return -4;  // data write fail
+        }
+
+        return 0;
+      }
     }
 
-    return -2; // no process found with this pid
+    release(&proc_entry->lock);
+  }
+
+  return -2; // no process found with this pid
+}
+
+int
+get_sysinfo(uint64 user_addr) {
+  struct proc *p = myproc();
+  struct sysinfo info;
+
+  info.procs_cnt=0;
+  info.open_files=0;
+  info.free_ram=0;
+  info.used_ram=0;
+
+  // count procs
+  for (struct proc *proc_entry = proc; proc_entry < &proc[NPROC]; proc_entry++) {
+		acquire(&proc_entry->lock);
+    if (proc_entry->state != UNUSED) {
+      info.procs_cnt++;
+    }
+    release(&proc_entry->lock);
+  }
+
+  // count open files
+  info.open_files=count_open_files();
+
+  if (copyout(p->pagetable, user_addr, (char *)&info, sizeof(info)) < 0) {
+    return -1;  // data write fail
+  }
+
+  return 0; //Success
 }

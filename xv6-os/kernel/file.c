@@ -19,6 +19,19 @@ struct {
   struct file file[NFILE];
 } ftable;
 
+int count_open_files(void) {
+  int count = 0;
+  acquire(&ftable.lock);
+  for (int i = 0; i < NFILE; i++) {
+    if (ftable.file[i].ref > 0) {
+      count++;
+    }
+  }
+  release(&ftable.lock);
+
+  return count;
+}
+
 void
 fileinit(void)
 {
