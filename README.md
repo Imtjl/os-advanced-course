@@ -26,7 +26,7 @@
 Сделать утилиту для вывода системной информации => `sysinfo`
 
 - executing `dump2tests`:
-```
+```fish
 $ dump2tests > /dev &; sysinfo
 System info:
  Number of procs: 4
@@ -38,7 +38,7 @@ System info:
 ```
 
 - idle
-```
+```fish
 $ sysinfo
 System info:
  Number of procs: 3
