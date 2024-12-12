@@ -86,6 +86,7 @@ enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 // Per-process state
 struct proc {
   struct list ple;             // proc list address entry
+  int priority;                // feedback scheduler priority queue
 
   struct spinlock lock;
 

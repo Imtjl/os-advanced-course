@@ -7,6 +7,8 @@
 #include "proc.h"
 #include "defs.h"
 
+#define MAX_PRIORITY_DEPTH 5
+
 struct cpu cpus[NCPU];
 
 // list, where i will push procs dynamically to
@@ -120,6 +122,7 @@ allocproc(void)
 
   p->pid = allocpid();
   p->state = USED;
+  p->priority = 0; // set it to 0 for clarity, even tho memset does this fine
 
   // Allocate a stack, a trapframe page,
   // and a page table
@@ -479,23 +482,47 @@ scheduler(void)
     intr_on();
 
     int found = 0;
+    int min = MAX_PRIORITY_DEPTH + 1;
+    acquire(&proc_list_lock);
+    struct proc *selected = 0;
     for(ple = proc_list.next; ple != &proc_list; ple = ple->next){
       p = (struct proc *) ple;
       acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        found = 1;
+      if(p->state == RUNNABLE && p->priority < min) {
+        if (selected) {
+          release(&p->lock);
+          release(&selected->lock);
+          acquire(&p->lock);
+        }
+        selected = p;
+        min = p->priority;
+      } else {
+        release(&p->lock);
+          
       }
-      release(&p->lock);
+    }
+    release(&proc_list_lock);
+
+    if (selected) {
+      // Switch to chosen process.  It is the process's job
+      // to release its lock and then reacquire it
+      // before jumping back to us.
+      selected->state = RUNNING;
+      c->proc = selected;
+      swtch(&c->context, &selected->context);
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+      found = 1;
+      release(&selected->lock);
+
+      // FCFS: push proc to the end of the list to ensure
+      // fisrt-come-first-served among 1 priority queue
+      acquire(&proc_list_lock);
+      lst_remove(&selected->ple);
+      lst_push(&proc_list, &selected->ple);
+      release(&proc_list_lock);
     }
     if(found == 0) {
       // nothing to run; stop running on this core until an interrupt.
@@ -532,12 +559,18 @@ sched(void)
   mycpu()->intena = intena;
 }
 
+// utility
+int min(int a, int b) {
+  return a < b ? a : b;
+}
+
 // Give up the CPU for one scheduling round.
 void
 yield(void)
 {
   struct proc *p = myproc();
   acquire(&p->lock);
+  p->priority = min(p->priority + 1, MAX_PRIORITY_DEPTH);
   p->state = RUNNABLE;
   sched();
   release(&p->lock);
