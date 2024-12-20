@@ -21,7 +21,7 @@ jobs:
           echo "Source branch: '$GITHUB_HEAD_REF'"
 
       - name: Build
-        run: make && make fs.img
+        run: cd xv6-os && make && make fs.img
 
       - name: Test Lab 1
         if: ${{ github.head_ref == 'lab-1' }}
