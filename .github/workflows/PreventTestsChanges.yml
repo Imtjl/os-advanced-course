@@ -3,15 +3,15 @@ name: PreventTestsChanges
 on:
   pull_request:
     paths:
-      - user/alloctest.c
-      - user/cowtest.c
-      - user/dump2tests.c
-      - user/dumptests.c
-      - user/dump2tests.S
-      - user/dumptests.S
-      - user/forktest.c
-      - user/lazytests.c
-      - user/usertests.c
+      - ./xv6-os/user/alloctest.c
+      - ./xv6-os/user/cowtest.c
+      - ./xv6-os/user/dump2tests.c
+      - ./xv6-os/user/dumptests.c
+      - ./xv6-os/user/dump2tests.S
+      - ./xv6-os/user/dumptests.S
+      - ./xv6-os/user/forktest.c
+      - ./xv6-os/user/lazytests.c
+      - ./xv6-os/user/usertests.c
 
 jobs:
     prevent-edit-test:

@@ -2,9 +2,9 @@ name: UserTests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 jobs:
   build:
@@ -25,16 +25,16 @@ jobs:
 
       - name: Test Lab 1
         if: ${{ github.head_ref == 'lab-1' }}
-        run: sh ./ci/test/run.sh dumptests dump2tests usertests
+        run: sh ./xv6-os/ci/test/run.sh dumptests dump2tests usertests
       
       - name: Test Lab 2
         if: ${{ github.head_ref == 'lab-2' }}
-        run: sh ./ci/test/run.sh alloctest usertests
+        run: sh ./xv6-os/ci/test/run.sh alloctest usertests
 
       - name: Test Lab 3
         if: ${{ github.head_ref == 'lab-3' }}
-        run: sh ./ci/test/run.sh cowtest lazytests usertests
+        run: sh ./xv6-os/ci/test/run.sh cowtest lazytests usertests
 
       - name: Test Basic
         if: ${{ ! startsWith(github.head_ref, 'lab-') }}
-        run: sh ./ci/test/run.sh usertests
+        run: sh ./xv6-os/ci/test/run.sh usertests
