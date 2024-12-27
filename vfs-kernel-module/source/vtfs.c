@@ -292,358 +292,161 @@ struct {
   struct list_head dentries;
 } vtfs_sb;
 
+// Find child file or dir in vtfs_sb.dentries
 struct dentry* vtfs_lookup(
     struct inode* parent_inode, struct dentry* child_dentry, unsigned int flag
 ) {
   // ----------------|  RAM  |---------------------
 
-  // struct vtfs_dentry *dentry;
-  // struct list_head *pos;
-  // struct inode *inode;
+  struct vtfs_dentry* dentry;
+  struct list_head* pos;
+  struct inode* inode;
 
-  // list_for_each(pos, &vtfs_sb.dentries) {
-  //   dentry = list_entry(pos, struct vtfs_dentry, list);
+  list_for_each(pos, &vtfs_sb.dentries) {
+    dentry = list_entry(pos, struct vtfs_dentry, list);
 
-  //   if (dentry->d_parent_ino == parent_inode->i_ino && strcmp(dentry->d_name,
-  //   child_dentry->d_name.name) == 0) {
-  //     inode = vtfs_get_inode(vtfs_sb.sb, parent_inode, dentry->d_inode->mode,
-  //     dentry->d_inode->ino); d_add(child_dentry, inode);
-  //   }
-  // }
-
-  // ----------------|  NET  |---------------------
-  unsigned long parent_ino = parent_inode->i_ino;
-  char* name = child_dentry->d_name.name;
-
-  char inode_str[11];
-  (void)snprintf(inode_str, sizeof(inode_str), "%d", parent_ino);
-
-  char name_enc[255 * 3 + 1];
-  encode(name, name_enc);
-
-  struct lookup_response response;
-  int64_t code = vtfs_http_call(
-      "admin",
-      "lookup",
-      (void*)&response,
-      sizeof(response),
-      2,
-      "parentInode",
-      inode_str,
-      "name",
-      name_enc
-  );
-  if ((code) != 0) {
-    printk(KERN_ERR "networkfs_http_call error code %lld\n", code);
-    return NULL;
+    if (dentry->d_parent_ino == parent_inode->i_ino &&
+        strcmp(dentry->d_name, child_dentry->d_name.name) == 0) {
+      inode = vtfs_get_inode(vtfs_sb.sb, parent_inode, dentry->d_inode->mode, dentry->d_inode->ino);
+      d_add(child_dentry, inode);
+      return NULL;
+    }
   }
-
-  struct inode* inode = vtfs_get_inode(vtfs_sb.sb, NULL, response.mode, response.ino);
-  d_add(child_dentry, inode);
-
-  return NULL;
+  return NULL;  // if nothing is found
 };
 
+// Create file in RAM
 int vtfs_create(struct inode* parent_inode, struct dentry* child_dentry, umode_t mode, bool b) {
   // ----------------|  RAM  |---------------------
 
-  // struct inode *inode;
-  // struct vtfs_dentry *new_dentry;
-  // struct vtfs_inode *new_inode;
+  struct inode* inode;
+  struct vtfs_dentry* new_dentry;
+  struct vtfs_inode* new_inode;
 
-  // inode = vtfs_get_inode(vtfs_sb.sb, parent_inode, mode, next_ino++);
-  // if (!inode)
-  //   return -ENOMEM;
-
-  // new_dentry = kmalloc(sizeof(struct vtfs_dentry), GFP_KERNEL);
-  // if (!new_dentry) {
-  //   iput(inode);
-  //   return -ENOMEM;
-  // }
-
-  // new_inode = kmalloc(sizeof(struct vtfs_inode), GFP_KERNEL);
-  // if (!new_inode) {
-  //   kfree(new_dentry);
-  //   iput(inode);
-  //   return -ENOMEM;
-  // }
-
-  // new_dentry->d_dentry = child_dentry;
-  // strcpy(new_dentry->d_name, child_dentry->d_name.name);
-  // new_dentry->d_parent_ino = parent_inode->i_ino;
-  // new_dentry->d_inode = new_inode;
-  // new_dentry->d_inode->ino = inode->i_ino;
-  // new_dentry->d_inode->mode = inode->i_mode;
-  // new_dentry->d_inode->i_size = 0;
-
-  // list_add(&new_dentry->list, &vtfs_sb.dentries);
-
-  // d_add(child_dentry, inode);
-
-  // printk(KERN_INFO "File %s added successfully\n", child_dentry->d_name.name);
-
-  // return 0;
-
-  // ----------------|  NET  |---------------------
-  unsigned long parent_ino = parent_inode->i_ino;
-  char* name = child_dentry->d_name.name;
-
-  char inode_str[11];
-  (void)snprintf(inode_str, sizeof(inode_str), "%d", parent_ino);
-
-  char name_enc[255 * 3 + 1];
-  encode(name, name_enc);
-
-  char mode_str[2];
-  (void)snprintf(mode_str, sizeof(mode_str), "%d", (int)mode);
-
-  struct create_response response;
-  int64_t code = vtfs_http_call(
-      "admin",
-      "create",
-      (void*)&response,
-      sizeof(response),
-      3,
-      "parentInode",
-      inode_str,
-      "name",
-      name_enc,
-      "mode",
-      mode_str
-  );
-  if (code != 0) {
-    printk(KERN_ERR "networkfs_http_call create failed");
+  inode = vtfs_get_inode(vtfs_sb.sb, parent_inode, mode, next_ino++);
+  if (!inode) {
     return -ENOMEM;
   }
 
-  struct inode* inode = vtfs_get_inode(vtfs_sb.sb, NULL, S_IFREG, response.ino);
-  if (!inode)
+  new_dentry = kmalloc(sizeof(struct vtfs_dentry), GFP_KERNEL);
+  if (!new_dentry) {
+    iput(inode);
     return -ENOMEM;
+  }
+
+  new_inode = kmalloc(sizeof(struct vtfs_inode), GFP_KERNEL);
+  if (!new_inode) {
+    kfree(new_dentry);
+    iput(inode);
+    return -ENOMEM;
+  }
+
+  new_dentry->d_dentry = child_dentry;
+  strcpy(new_dentry->d_name, child_dentry->d_name.name);
+  new_dentry->d_parent_ino = parent_inode->i_ino;
+  new_dentry->d_inode = new_inode;
+  new_dentry->d_inode->ino = inode->i_ino;
+  new_dentry->d_inode->mode = inode->i_mode;
+  new_dentry->d_inode->i_size = 0;
+
+  list_add(&new_dentry->list, &vtfs_sb.dentries);
 
   d_add(child_dentry, inode);
+
+  printk(KERN_INFO "File %s added successfully\n", child_dentry->d_name.name);
 
   return 0;
 }
 
+// Delete file from RAM
 int vtfs_unlink(struct inode* parent_inode, struct dentry* child_dentry) {
   // ----------------|  RAM  |---------------------
 
-  // struct vtfs_dentry *found_dentry = NULL;
-  // struct list_head *pos;
+  struct vtfs_dentry* found_dentry = NULL;
+  struct list_head* pos;
 
-  // list_for_each(pos, &vtfs_sb.dentries) {
-  //   found_dentry = list_entry(pos, struct vtfs_dentry, list);
+  list_for_each(pos, &vtfs_sb.dentries) {
+    found_dentry = list_entry(pos, struct vtfs_dentry, list);
 
-  //   if (strcmp(found_dentry->d_name, child_dentry->d_name.name) == 0 &&
-  //   found_dentry->d_parent_ino == parent_inode->i_ino) {
+    if (strcmp(found_dentry->d_name, child_dentry->d_name.name) == 0 &&
+        found_dentry->d_parent_ino == parent_inode->i_ino) {
+      list_del(&found_dentry->list);
 
-  //     list_del(&found_dentry->list);
+      kfree(found_dentry);
 
-  //     kfree(found_dentry);
+      printk(KERN_INFO "File %s deleted successfully\n", child_dentry->d_name.name);
 
-  //     printk(KERN_INFO "File %s deleted successfully\n", child_dentry->d_name.name);
-
-  //     return 0;
-  //   }
-  // }
-
-  // return -ENOENT;
-
-  // ----------------|  NET  |---------------------
-  unsigned long parent_ino = parent_inode->i_ino;
-  char* name = child_dentry->d_name.name;
-
-  char inode_str[11];
-  (void)snprintf(inode_str, sizeof(inode_str), "%d", parent_ino);
-
-  char name_enc[255 * 3 + 1];
-  encode(name, name_enc);
-
-  struct remove_response response;
-  int64_t code = vtfs_http_call(
-      "admin",
-      "remove",
-      (void*)&response,
-      sizeof(response),
-      2,
-      "parentInode",
-      inode_str,
-      "name",
-      name_enc
-  );
-  if (code != 0) {
-    printk(KERN_ERR "networkfs_http_call error code %lld\n", code);
-    return -ENOENT;
+      return 0;
+    }
   }
 
-  return 0;
+  return -ENOENT;
 }
 
+// Create dir in RAM
 int vtfs_mkdir(struct inode* parent_inode, struct dentry* child_dentry, umode_t mode) {
   // ----------------|  RAM  |---------------------
 
-  // struct inode *inode;
-  // struct vtfs_dentry *new_dentry;
+  struct inode* inode;
+  struct vtfs_dentry* new_dentry;
 
-  // inode = vtfs_get_inode(vtfs_sb.sb, parent_inode, mode | S_IFDIR, next_ino++);
-  // if (!inode) {
-  //     return -ENOMEM;
-  // }
-
-  // new_dentry = kmalloc(sizeof(struct vtfs_dentry), GFP_KERNEL);
-  // if (!new_dentry) {
-  //     iput(inode);
-  //     return -ENOMEM;
-  // }
-
-  // new_dentry->d_inode = kmalloc(sizeof(struct vtfs_inode), GFP_KERNEL);
-  // if (!new_dentry->d_inode) {
-  //     kfree(new_dentry);
-  //     iput(inode);
-  //     return -ENOMEM;
-  // }
-
-  // new_dentry->d_dentry = child_dentry;
-  // strcpy(new_dentry->d_name, child_dentry->d_name.name);
-  // new_dentry->d_parent_ino = parent_inode->i_ino;
-  // new_dentry->d_inode->ino = inode->i_ino;
-  // new_dentry->d_inode->mode = inode->i_mode;
-  // new_dentry->d_inode->i_size = 0;
-
-  // list_add(&new_dentry->list, &vtfs_sb.dentries);
-
-  // d_add(child_dentry, inode);
-
-  // printk(KERN_INFO "Directory %s created successfully\n", child_dentry->d_name.name);
-
-  // return 0;
-
-  // ----------------|  NET  |---------------------
-  unsigned long parent_ino = parent_inode->i_ino;
-  char* name = child_dentry->d_name.name;
-
-  char inode_str[11];
-  (void)snprintf(inode_str, sizeof(inode_str), "%d", parent_ino);
-
-  char name_enc[255 * 3 + 1];
-  encode(name, name_enc);
-
-  char mode_str[2];
-  (void)snprintf(mode_str, sizeof(mode_str), "%d", (int)mode);
-
-  struct create_response response;
-  int64_t code = vtfs_http_call(
-      "admin",
-      "create",
-      (void*)&response,
-      sizeof(response),
-      3,
-      "parentInode",
-      inode_str,
-      "name",
-      name_enc,
-      "mode",
-      mode_str
-  );
-  if (code != 0) {
-    printk(KERN_ERR "networkfs_http_call create failed");
+  inode = vtfs_get_inode(vtfs_sb.sb, parent_inode, mode | S_IFDIR, next_ino++);
+  if (!inode) {
     return -ENOMEM;
   }
 
-  struct inode* inode = vtfs_get_inode(vtfs_sb.sb, NULL, S_IFDIR, response.ino);
-  if (!inode)
+  new_dentry = kmalloc(sizeof(struct vtfs_dentry), GFP_KERNEL);
+  if (!new_dentry) {
+    iput(inode);
     return -ENOMEM;
+  }
+
+  new_dentry->d_inode = kmalloc(sizeof(struct vtfs_inode), GFP_KERNEL);
+  if (!new_dentry->d_inode) {
+    kfree(new_dentry);
+    iput(inode);
+    return -ENOMEM;
+  }
+
+  new_dentry->d_dentry = child_dentry;
+  strcpy(new_dentry->d_name, child_dentry->d_name.name);
+  new_dentry->d_parent_ino = parent_inode->i_ino;
+  new_dentry->d_inode->ino = inode->i_ino;
+  new_dentry->d_inode->mode = inode->i_mode;
+  new_dentry->d_inode->i_size = 0;
+
+  list_add(&new_dentry->list, &vtfs_sb.dentries);
 
   d_add(child_dentry, inode);
 
+  printk(KERN_INFO "Directory %s created successfully\n", child_dentry->d_name.name);
+
   return 0;
 }
 
+// Delete dir from RAM
 int vtfs_rmdir(struct inode* parent_inode, struct dentry* child_dentry) {
   // ----------------|  RAM  |---------------------
 
-  // struct vtfs_dentry *found_dentry = NULL;
-  // struct list_head *pos;
+  struct vtfs_dentry* found_dentry = NULL;
+  struct list_head* pos;
 
-  // list_for_each(pos, &vtfs_sb.dentries) {
-  //   found_dentry = list_entry(pos, struct vtfs_dentry, list);
+  list_for_each(pos, &vtfs_sb.dentries) {
+    found_dentry = list_entry(pos, struct vtfs_dentry, list);
 
-  //   if (strcmp(found_dentry->d_name, child_dentry->d_name.name) == 0 &&
-  //   found_dentry->d_parent_ino == parent_inode->i_ino) {
+    if (strcmp(found_dentry->d_name, child_dentry->d_name.name) == 0 &&
+        found_dentry->d_parent_ino == parent_inode->i_ino) {
+      list_del(&found_dentry->list);
+      kfree(found_dentry);
 
-  //     list_del(&found_dentry->list);
-  //     kfree(found_dentry);
+      printk(KERN_INFO "File %s deleted successfully\n", child_dentry->d_name.name);
 
-  //     printk(KERN_INFO "File %s deleted successfully\n", child_dentry->d_name.name);
-
-  //     return 0;
-  //   }
-  // }
-
-  // return -ENOENT;
-
-  // ----------------|  NET  |---------------------
-  unsigned long parent_ino = parent_inode->i_ino;
-  char* name = child_dentry->d_name.name;
-
-  char inode_str[11];
-  (void)snprintf(inode_str, sizeof(inode_str), "%d", parent_ino);
-
-  char name_enc[255 * 3 + 1];
-  encode(name, name_enc);
-
-  struct remove_response response;
-  int64_t code = vtfs_http_call(
-      "admin",
-      "remove",
-      (void*)&response,
-      sizeof(response),
-      2,
-      "parentInode",
-      inode_str,
-      "name",
-      name_enc
-  );
-  if (code != 0) {
-    printk(KERN_ERR "networkfs_http_call error code %lld\n", code);
-    return -ENOENT;
+      return 0;
+    }
   }
 
-  return 0;
+  return -ENOENT;  // couldn't find any dir
 }
-
-// int vtfs_link(struct dentry *old_dentry, struct inode *parent_inode, struct dentry *new_dentry) {
-//     struct vtfs_dentry *existing_dentry = NULL;
-//     struct list_head *pos;
-//     struct vtfs_dentry *new_link_dentry;
-
-//     list_for_each(pos, &vtfs_sb.dentries) {
-//         existing_dentry = list_entry(pos, struct vtfs_dentry, list);
-
-//         if (strcmp(existing_dentry->d_name, old_dentry->d_name.name) == 0 &&
-//             existing_dentry->d_parent_ino == old_dentry->d_parent->d_inode->i_ino) {
-
-//             new_link_dentry = kmalloc(sizeof(struct vtfs_dentry), GFP_KERNEL);
-//             if (!new_link_dentry)
-//                 return -ENOMEM;
-
-//             new_link_dentry->d_dentry = new_dentry;
-//             strcpy(new_link_dentry->d_name, new_dentry->d_name.name);
-//             new_link_dentry->d_parent_ino = parent_inode->i_ino;
-//             new_link_dentry->d_inode = existing_dentry->d_inode;
-
-//             list_add(&new_link_dentry->list, &vtfs_sb.dentries);
-//             inc_nlink(old_dentry->d_inode);
-
-//             d_add(new_dentry, old_dentry->d_inode);
-
-//             printk(KERN_INFO "File %s linked successfully\n", new_dentry->d_name.name);
-//             return 0;
-//         }
-//     }
-
-//     return -ENOENT;
-// }
 
 struct inode_operations vtfs_inode_ops = {
     .lookup = vtfs_lookup,
@@ -651,46 +454,14 @@ struct inode_operations vtfs_inode_ops = {
     .unlink = vtfs_unlink,
     .mkdir = vtfs_mkdir,
     .rmdir = vtfs_rmdir,
-    // .link = vtfs_link,
 };
 
+// Iterate through all dir includes in RAM
 int vtfs_iterate(struct file* file, struct dir_context* ctx) {
-  // struct vtfs_dentry *dentry;
-  // struct list_head *pos;
-  // struct inode *dir_inode = file->f_path.dentry->d_inode;
-  // unsigned char type;
-
-  // if (!dir_emit_dots(file, ctx))
-  //   return 0;
-
-  // if (ctx->pos >= 3) {
-  //   return ctx->pos;
-  // }
-
-  // list_for_each(pos, &vtfs_sb.dentries) {
-  //   dentry = list_entry(pos, struct vtfs_dentry, list);
-
-  //   printk(KERN_INFO "Dentry %s inode %ld data %s\n", dentry->d_name, dentry->d_inode->ino,
-  //   dentry->d_inode->i_data);
-
-  //   if (S_ISDIR(dentry->d_inode->mode))
-  //     type = DT_DIR;
-  //   else if (S_ISREG(dentry->d_inode->mode))
-  //     type = DT_REG;
-  //   else
-  //     type = DT_UNKNOWN;
-
-  //   if (dentry->d_parent_ino == dir_inode->i_ino && !dir_emit(ctx, dentry->d_name,
-  //   strlen(dentry->d_name), dentry->d_inode->ino, type)) {
-  //     return -ENOMEM;
-  //   }
-
-  //   ctx->pos += 1;
-  // }
-  //
-  // return ctx->pos;
-
-  // ----------------|  NET  |---------------------
+  struct vtfs_dentry* dentry;
+  struct list_head* pos;
+  struct inode* dir_inode = file->f_path.dentry->d_inode;
+  unsigned char type;
 
   if (!dir_emit_dots(file, ctx))
     return 0;
@@ -699,160 +470,96 @@ int vtfs_iterate(struct file* file, struct dir_context* ctx) {
     return ctx->pos;
   }
 
-  char inode_str[11];
-  (void)snprintf(inode_str, sizeof(inode_str), "%d", file->f_path.dentry->d_inode->i_ino);
+  list_for_each(pos, &vtfs_sb.dentries) {
+    dentry = list_entry(pos, struct vtfs_dentry, list);
 
-  struct iterate_response response;
-  int64_t code = vtfs_http_call(
-      "admin", "iterate", (void*)&response, sizeof(response), 1, "parentInode", inode_str
-  );
-  if (code != 0) {
-    printk(KERN_ERR "networkfs_http_call error code %lld\n", code);
-  }
+    printk(
+        KERN_INFO "Dentry %s inode %ld data %s\n",
+        dentry->d_name,
+        dentry->d_inode->ino,
+        dentry->d_inode->i_data
+    );
 
-  int i;
-  for (i = 0; i < response.count; i++) {
-    if (!dir_emit(
-            ctx,
-            response.r_dentries[i].name,
-            strlen(response.r_dentries[i].name),
-            response.r_dentries[i].ino,
-            response.r_dentries[i].mode
-        )) {
-      printk(KERN_ERR "dir_emit error");
+    if (S_ISDIR(dentry->d_inode->mode))
+      type = DT_DIR;
+    else if (S_ISREG(dentry->d_inode->mode))
+      type = DT_REG;
+    else
+      type = DT_UNKNOWN;
+
+    if (dentry->d_parent_ino == dir_inode->i_ino &&
+        !dir_emit(ctx, dentry->d_name, strlen(dentry->d_name), dentry->d_inode->ino, type)) {
+      return -ENOMEM;
     }
+
     ctx->pos += 1;
   }
 
-  return (int)(ctx->pos - file->f_pos);
+  return ctx->pos;
 }
 
+// Read file data from RAM
 ssize_t vtfs_read(struct file* file, char* buffer, size_t len, loff_t* offset) {
   // ----------------|  RAM  |---------------------
 
-  // struct vtfs_inode *found_inode;
-  // struct vtfs_dentry *found_dentry;
-  // struct inode *file_inode = file->f_inode;
-  // struct list_head *pos;
-  // ssize_t to_read;
+  struct vtfs_inode* found_inode;
+  struct vtfs_dentry* found_dentry;
+  struct inode* file_inode = file->f_inode;
+  struct list_head* pos;
+  ssize_t to_read;
 
-  // list_for_each(pos, &vtfs_sb.dentries) {
-  //   found_dentry = list_entry(pos, struct vtfs_dentry, list);
-  //   found_inode = found_dentry->d_inode;
+  list_for_each(pos, &vtfs_sb.dentries) {
+    found_dentry = list_entry(pos, struct vtfs_dentry, list);
+    found_inode = found_dentry->d_inode;
 
-  //   if (found_dentry->d_inode->ino == file_inode->i_ino) {
-  //     if (*offset > found_inode->i_size)
-  //       return 0;
+    if (found_dentry->d_inode->ino == file_inode->i_ino) {
+      if (*offset > found_inode->i_size)
+        return 0;
 
-  //     to_read = min(len, found_inode->i_size - *offset);
-  //     if (copy_to_user(buffer, found_inode->i_data + *offset, to_read))
-  //       return -EFAULT;
+      to_read = min(len, found_inode->i_size - *offset);
+      if (copy_to_user(buffer, found_inode->i_data + *offset, to_read))
+        return -EFAULT;
 
-  //     *offset += to_read;
+      *offset += to_read;
 
-  //     return to_read;
-  //   }
-  // }
-
-  // return -ENOENT;
-
-  // ----------------|  NET  |---------------------
-  char inode_str[11];
-  (void)snprintf(inode_str, sizeof(inode_str), "%d", file->f_path.dentry->d_inode->i_ino);
-
-  int64_t code;
-  struct read_response response;
-  if ((code = vtfs_http_call(
-           "admin", "read", (void*)&response, sizeof(response), 1, "inode", inode_str
-       )) != 0) {
-    printk(KERN_INFO "networkfs_http_call error code %lld\n", code);
-    return -ENOENT;
+      return to_read;
+    }
   }
 
-  if (*offset >= response.size) {
-    return 0;
-  }
-
-  ssize_t to_read = min(len, response.size - *offset);
-  if (copy_to_user(buffer, response.data + *offset, to_read)) {
-    return -EFAULT;
-  }
-
-  *offset += to_read;
-
-  return to_read;
+  return -ENOENT;
 }
 
+// write file data to RAM
 ssize_t vtfs_write(struct file* file, const char* buffer, size_t len, loff_t* offset) {
   // ----------------|  RAM  |---------------------
 
-  // struct vtfs_inode *found_inode;
-  // struct vtfs_dentry *found_dentry;
-  // struct inode *file_inode = file->f_inode;
-  // struct list_head *pos;
-  // void *new_data;
-  // ssize_t new_size;
+  struct vtfs_inode* found_inode;
+  struct vtfs_dentry* found_dentry;
+  struct inode* file_inode = file->f_inode;
+  struct list_head* pos;
+  void* new_data;
+  ssize_t new_size;
 
-  // list_for_each(pos, &vtfs_sb.dentries) {
-  //   found_dentry = list_entry(pos, struct vtfs_dentry, list);
-  //   found_inode = found_dentry->d_inode;
+  list_for_each(pos, &vtfs_sb.dentries) {
+    found_dentry = list_entry(pos, struct vtfs_dentry, list);
+    found_inode = found_dentry->d_inode;
 
-  //   if (found_dentry->d_inode->ino == file_inode->i_ino) {
-  //     new_size = max(found_inode->i_size, *offset + len);
+    if (found_dentry->d_inode->ino == file_inode->i_ino) {
+      new_size = max(found_inode->i_size, *offset + len);
 
-  //     if (copy_from_user(found_inode->i_data + *offset, buffer, len)) {
-  //       return -EFAULT;
-  //     }
+      if (copy_from_user(found_inode->i_data + *offset, buffer, len)) {
+        return -EFAULT;
+      }
 
-  //     found_inode->i_size = new_size;
+      found_inode->i_size = new_size;
 
-  //     *offset += len;
+      *offset += len;
 
-  //     return len;
-  //   }
-  // }
-
-  // return -ENOENT;
-
-  // ----------------|  NET  |---------------------
-  if (*offset >= 2048) {
-    return 0;
+      return len;
+    }
   }
 
-  len = min(len, 2047);
-
-  char data[2048];
-  if (copy_from_user(data, buffer, len) != 0) {
-    return 0;
-  }
-  data[len] = 0;
-
-  char inode_str[11];
-  (void)snprintf(inode_str, sizeof(inode_str), "%d", file->f_path.dentry->d_inode->i_ino);
-
-  char data_enc[2047 * 3 + 1];
-  encode(data, data_enc);
-
-  int64_t code;
-  struct write_response response;
-  if ((code = vtfs_http_call(
-           "admin",
-           "write",
-           (void*)&response,
-           sizeof(response),
-           2,
-           "inode",
-           inode_str,
-           "data",
-           data_enc
-       )) != 0) {
-    printk(KERN_ERR "networkfs_http_call error code %lld\n", code);
-    return -1;
-  }
-
-  *offset += len;
-
-  return len;
+  return -ENOENT;
 }
 
 struct file_operations vtfs_dir_ops = {
@@ -914,15 +621,7 @@ struct dentry* vtfs_mount(
 }
 
 int init(void) {
-  struct max_ino_response response;
-  int64_t code = vtfs_http_call("admin", "max_ino", (void*)&response, sizeof(response), 0);
-  if ((code) != 0) {
-    printk(KERN_ERR "vtfs_init error code %lld\n", code);
-    return -1;
-  }
-
-  next_ino = response.ino;
-
+  next_ino = ROOT_INODE_INO;
   return 0;
 }
 
