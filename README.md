@@ -1,7 +1,6 @@
 # Advanced Operating Systems
 
 [![UserTests](https://github.com/Imtjl/os-advanced-course-solutions/actions/workflows/UserTests.yml/badge.svg)](https://github.com/Imtjl/os-advanced-course-solutions/actions/workflows/UserTests.yml)
-[![DockerHub](https://github.com/Imtjl/os-advanced-course-solutions/actions/workflows/DockerHub.yml/badge.svg)](https://github.com/Imtjl/os-advanced-course-solutions/actions/workflows/DockerHub.yml)
 
 Решения лабораторных работ продвинутого трека курса «Операционные системы» (ITMO
 CSE). Работа велась на уровне ядра: учебная ОС `xv6-riscv` и загружаемый модуль
