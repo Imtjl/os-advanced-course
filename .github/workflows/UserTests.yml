@@ -33,7 +33,7 @@ jobs:
 
       - name: Test Lab 3
         if: ${{ github.head_ref == 'lab-3' }}
-        run: sh ./xv6-os/ci/test/run.sh cowtest lazytests usertests
+        run: sh ./xv6-os/ci/test/run.sh cowtest usertests
 
       - name: Test Lab 3 Lazy
         if: ${{ github.head_ref == 'lab-3-lazy' }}
