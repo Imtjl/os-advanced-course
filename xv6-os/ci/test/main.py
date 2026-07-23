@@ -38,6 +38,9 @@ def read_header(qemu: Qemu):
     prefix = [qemu.readline() for _ in range(7)]
     assert_eq(prefix[2], "xv6 kernel is booting")
     assert_eq(prefix[3], "")
+    # ingenious skip of buddy allocator metadata
+    if "bd: memory sz" in prefix[4]:
+        prefix = prefix[0:4] + [qemu.readline() for _ in range(3)]
     assert prefix[4] in (f"hart {i + 1} starting" for i in range(2))
     assert prefix[5] in (f"hart {i + 1} starting" for i in range(2))
     assert_eq(prefix[6], "init: starting sh")
