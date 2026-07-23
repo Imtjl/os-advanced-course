@@ -1,4 +1,6 @@
+#define NDIRECT 12
 struct file {
+  struct spinlock lock;
   enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE } type;
   int ref; // reference count
   char readable;
@@ -36,5 +38,6 @@ struct devsw {
 };
 
 extern struct devsw devsw[];
+int count_open_files(void);
 
 #define CONSOLE 1

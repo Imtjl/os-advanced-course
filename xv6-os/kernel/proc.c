@@ -3,13 +3,15 @@
 #include "memlayout.h"
 #include "riscv.h"
 #include "spinlock.h"
+#include "sleeplock.h"
 #include "proc.h"
 #include "defs.h"
+#include "file.h"
+#include "sysinfo.h"
 
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
-
 struct proc *initproc;
 
 int nextpid = 1;
@@ -692,4 +694,97 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+int dump(void) {
+    struct proc *p = myproc();
+    struct trapframe *tf = p->trapframe;
+
+    uint64 regs[10];
+
+    regs[0] = tf->s2;
+    regs[1] = tf->s3;
+    regs[2] = tf->s4;
+    regs[3] = tf->s5;
+    regs[4] = tf->s6;
+    regs[5] = tf->s7;
+    regs[6] = tf->s8;
+    regs[7] = tf->s9;
+    regs[8] = tf->s10;
+    regs[9] = tf->s11;
+
+    for (int i = 0; i < 10; i++) {
+        printf("s%d = %d\n", i + 2, (uint32)regs[i]);
+    }
+
+    return 0;
+}
+
+int dump2(int pid, int reg, uint64 return_value_user) {
+  struct proc *p = myproc();
+  struct proc *target_proc = 0;
+
+  // check for reg num (only s2..s11 are dumpable)
+  if (reg < 2 || reg > 11) {
+    return -3;  // incorrect reg num
+  }
+
+  for (struct proc *proc_entry = proc; proc_entry < &proc[NPROC]; proc_entry++) {
+		acquire(&proc_entry->lock);  // spinlock
+
+		if (proc_entry->pid == pid) {
+      target_proc = proc_entry;
+      // check for access rights
+      if (target_proc != p && target_proc->parent != p) {
+        release(&target_proc->lock);
+        return -1;  // don't have enough access rights
+      }
+
+      uint64 reg_value;
+      if (reg >= 2 && reg <= 11) {
+         reg_value = *(&target_proc->trapframe->s2 + (reg - 2));
+      }
+
+      release(&target_proc->lock);
+
+      if (copyout(p->pagetable, return_value_user, (char *)&reg_value, sizeof(uint64)) < 0) {
+        return -4;  // data write fail
+      }
+
+      return 0;
+    }
+
+    release(&proc_entry->lock);
+  }
+
+  return -2; // no process found with this pid
+}
+
+int
+get_sysinfo(uint64 user_addr) {
+  struct proc *p = myproc();
+  struct sysinfo info;
+
+  info.procs_cnt=0;
+  info.open_files=0;
+  info.free_ram=0;
+  info.used_ram=0;
+
+  // count procs
+  for (struct proc *proc_entry = proc; proc_entry < &proc[NPROC]; proc_entry++) {
+		acquire(&proc_entry->lock);
+    if (proc_entry->state != UNUSED) {
+      info.procs_cnt++;
+    }
+    release(&proc_entry->lock);
+  }
+
+  // count open files
+  info.open_files=count_open_files();
+
+  if (copyout(p->pagetable, user_addr, (char *)&info, sizeof(info)) < 0) {
+    return -1;  // data write fail
+  }
+
+  return 0; //Success
 }

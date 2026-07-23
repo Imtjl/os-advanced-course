@@ -15,6 +15,9 @@ sub entry {
     print " ret\n";
 }
 	
+entry("dump");
+entry("dump2");
+entry("info");
 entry("fork");
 entry("exit");
 entry("wait");
