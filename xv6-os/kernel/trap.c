@@ -65,6 +65,12 @@ usertrap(void)
     intr_on();
 
     syscall();
+  } else if(r_scause() == 13 || r_scause() == 15) {
+    uint64 va = r_stval();
+
+    if(lazyalloc(p, va) == -1)
+      setkilled(p);
+
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
@@ -216,3 +222,22 @@ devintr()
   }
 }
 
+int
+lazyalloc(struct proc* p, uint64 va) { 
+  if (va >= p->sz || va < PGROUNDDOWN(p->trapframe->sp))
+    return -1;
+
+  char* mem; 
+  if ((mem = kalloc()) == 0)
+    return -1;
+
+  memset(mem, 0, PGSIZE); 
+  uint64 virtualPageBase = PGROUNDDOWN(va);
+
+  if (mappages(p->pagetable, virtualPageBase, PGSIZE, (uint64)(mem), PTE_R|PTE_W|PTE_X|PTE_U) != 0) { 
+    kfree(mem);
+    return -1;
+  }
+
+  return 0;
+}

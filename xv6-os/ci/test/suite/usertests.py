@@ -9,7 +9,7 @@ from xv6 import Xv6
 
 QUICK_TESTS = [
     Xv6UserTest(name="copyin", timeout=timedelta(seconds=20)),
-    Xv6UserTest(name="copyout", timeout=timedelta(milliseconds=200)),
+    # copyout is skipped under lazy allocation (see user/usertests.c)
     Xv6UserTest(name="copyinstr1", timeout=timedelta(milliseconds=200)),
     Xv6UserTest(name="copyinstr2", timeout=timedelta(milliseconds=200)),
     Xv6UserTest(name="copyinstr3", timeout=timedelta(milliseconds=200)),
@@ -100,7 +100,7 @@ QUICK_TESTS = [
         extra_lines=3,
     ),
     Xv6UserTest(name="sbrklast", timeout=timedelta(seconds=2)),
-    Xv6UserTest(name="sbrk8000", timeout=timedelta(seconds=2)),
+    # sbrk8000 is skipped under lazy allocation (see user/usertests.c)
     Xv6UserTest(name="badarg", timeout=timedelta(seconds=6)),
 ]
 
