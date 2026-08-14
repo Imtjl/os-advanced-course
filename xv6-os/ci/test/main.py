@@ -40,7 +40,14 @@ def read_header(qemu: Qemu):
     assert_eq(prefix[3], "")
     assert prefix[4] in (f"hart {i + 1} starting" for i in range(2))
     assert prefix[5] in (f"hart {i + 1} starting" for i in range(2))
-    assert_eq(prefix[6], "init: starting sh")
+    # lab-3 dumps the initial page table (vmprint) at boot before the shell
+    # starts; skip any such lines until the shell banner appears.
+    line = prefix[6]
+    for _ in range(256):
+        if line == "init: starting sh":
+            break
+        line = qemu.readline()
+    assert_eq(line, "init: starting sh")
 
 
 if __name__ == "__main__":
